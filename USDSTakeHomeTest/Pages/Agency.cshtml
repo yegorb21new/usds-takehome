@@ -1,0 +1,68 @@
+﻿@page
+@model USDSTakeHomeTest.Pages.AgencyModel
+@{
+    ViewData["Title"] = "Agency";
+}
+
+<h1>Agency</h1>
+
+<p><a href="/Dashboard">← Back to Dashboard</a></p>
+
+<div id="status"></div>
+
+<h2 id="agencyName" style="font-size: 1.25rem; font-weight: 600; margin-top: 12px;"></h2>
+
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 1100px;">
+    <thead>
+        <tr>
+            <th style="text-align:left;">Snapshot Date</th>
+            <th style="text-align:left;">Type</th>
+            <th style="text-align:right;">Word Count</th>
+            <th style="text-align:right;">Obligation Intensity (per 10k words)</th>
+            <th style="text-align:left;">Checksum (short)</th>
+        </tr>
+    </thead>
+    <tbody id="seriesRows"></tbody>
+</table>
+
+<script>
+    const agencyId = @Model.AgencyId;
+    const statusEl = document.getElementById("status");
+    const agencyNameEl = document.getElementById("agencyName");
+    const seriesRowsEl = document.getElementById("seriesRows");
+
+    async function load() {
+        statusEl.textContent = "Loading...";
+        seriesRowsEl.innerHTML = "";
+
+        // Pull agency name from /api/agencies list (simple)
+        const listRes = await fetch("/api/agencies");
+        const listData = await listRes.json();
+        const agency = (listData.agencies || []).find(a => a.id === agencyId);
+        agencyNameEl.textContent = agency ? agency.name : `Agency #${agencyId}`;
+
+        // Pull time series
+        const res = await fetch(`/api/agencies/${agencyId}/metrics`);
+        if (!res.ok) {
+            statusEl.textContent = `Error loading metrics: ${res.status}`;
+            return;
+        }
+
+        const series = await res.json();
+        statusEl.textContent = `Snapshots: ${series.length}`;
+
+        for (const row of series) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${row.snapshotDate}</td>
+                <td>${row.type}</td>
+                <td style="text-align:right;">${row.wordCount}</td>
+                <td style="text-align:right;">${row.obligationIntensity.toFixed(2)}</td>
+                <td>${row.sha256Checksum.slice(0, 12)}</td>
+            `;
+            seriesRowsEl.appendChild(tr);
+        }
+    }
+
+    load();
+</script>

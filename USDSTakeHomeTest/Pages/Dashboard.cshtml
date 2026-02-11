@@ -1,0 +1,179 @@
+﻿@page
+@model USDSTakeHomeTest.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h1>Regulation Dashboard</h1>
+
+<p>
+    <button id="ingest1Btn">Ingest Title 1</button>
+    <button id="ingestAllBtn">Ingest Titles 1–50</button>
+    <button id="refreshBtn">Refresh</button>
+</p>
+
+
+<p>
+    <label>
+        Search:
+        <input id="searchBox" type="text" placeholder="Type agency name..." style="width: 320px;" />
+    </label>
+</p>
+
+<div id="status"></div>
+
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+    <thead>
+        <tr>
+            <th style="text-align:left;">Agency</th>
+            <th style="text-align:right;">Word Count</th>
+            <th style="text-align:right;">Obligation Intensity (per 10k words)</th>
+            <th style="text-align:left;">Checksum (short)</th>
+        </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+</table>
+
+<hr />
+<h2>Top Changes (latest two snapshots)</h2>
+
+<div id="changesStatus"></div>
+
+<h3>Word Count</h3>
+<div style="display:flex; gap: 32px; flex-wrap: wrap;">
+    <div style="min-width: 420px;">
+        <h4>Largest Increases</h4>
+        <ol id="wordUp"></ol>
+    </div>
+    <div style="min-width: 420px;">
+        <h4>Largest Decreases</h4>
+        <ol id="wordDown"></ol>
+    </div>
+</div>
+
+<h3>Obligation Intensity</h3>
+<div style="display:flex; gap: 32px; flex-wrap: wrap;">
+    <div style="min-width: 420px;">
+        <h4>Largest Increases</h4>
+        <ol id="oblUp"></ol>
+    </div>
+    <div style="min-width: 420px;">
+        <h4>Largest Decreases</h4>
+        <ol id="oblDown"></ol>
+    </div>
+</div>
+
+
+<script>
+    const statusEl = document.getElementById("status");
+    const rowsEl = document.getElementById("rows");
+    const searchBox = document.getElementById("searchBox");
+    const changesStatusEl = document.getElementById("changesStatus");
+    const wordUpEl = document.getElementById("wordUp");
+    const wordDownEl = document.getElementById("wordDown");
+    const oblUpEl = document.getElementById("oblUp");
+    const oblDownEl = document.getElementById("oblDown");
+
+
+    let cachedAgencies = [];
+    let latestSnapshot = null;
+
+    function render() {
+        const q = (searchBox.value || "").trim().toLowerCase();
+        rowsEl.innerHTML = "";
+
+        const filtered = q.length === 0
+            ? cachedAgencies
+            : cachedAgencies.filter(a => a.name.toLowerCase().includes(q));
+
+        for (const a of filtered) {
+            const latest = a.latest;
+
+            const wordCount = latest ? latest.wordCount : null;
+            const intensity = latest ? latest.obligationIntensity : null;
+            const checksumShort = latest ? latest.sha256Checksum.slice(0, 12) : null;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>
+                    <a href="/Agency?agencyId=${a.id}">${a.name}</a>
+                </td>
+                <td style="text-align:right;">${wordCount ?? "-"}</td>
+                <td style="text-align:right;">${intensity != null ? intensity.toFixed(2) : "-"}</td>
+                <td>${checksumShort ?? "-"}</td>
+            `;
+            rowsEl.appendChild(tr);
+        }
+    }
+
+    function renderChangeList(el, items, valueFormatter) {
+        el.innerHTML = "";
+        for (const x of items) {
+            const li = document.createElement("li");
+            li.innerHTML = `<a href="/Agency?agencyId=${x.agencyId}">${x.agencyName}</a> — ${valueFormatter(x)}`;
+            el.appendChild(li);
+        }
+    }
+
+    async function loadChanges() {
+        changesStatusEl.textContent = "Loading changes...";
+        wordUpEl.innerHTML = wordDownEl.innerHTML = oblUpEl.innerHTML = oblDownEl.innerHTML = "";
+
+        const res = await fetch("/api/insights/top-changes?top=10");
+        const txt = await res.text();
+
+        if (!res.ok) {
+            changesStatusEl.textContent = `Top changes unavailable: ${txt}`;
+            return;
+        }
+
+        const data = JSON.parse(txt);
+
+        changesStatusEl.textContent =
+            `Comparing ${data.fromSnapshot.type} (${data.fromSnapshot.snapshotDate}) → ` +
+            `${data.toSnapshot.type} (${data.toSnapshot.snapshotDate})`;
+
+        renderChangeList(wordUpEl, data.topWordCountIncreases, x => `Δ words: ${x.deltaWordCount.toLocaleString()}`);
+        renderChangeList(wordDownEl, data.topWordCountDecreases, x => `Δ words: ${x.deltaWordCount.toLocaleString()}`);
+        renderChangeList(oblUpEl, data.topObligationIntensityIncreases, x => `Δ intensity: ${x.deltaObligationIntensity.toFixed(2)}`);
+        renderChangeList(oblDownEl, data.topObligationIntensityDecreases, x => `Δ intensity: ${x.deltaObligationIntensity.toFixed(2)}`);
+    }
+
+
+    async function load() {
+        statusEl.textContent = "Loading...";
+        rowsEl.innerHTML = "";
+
+        const res = await fetch("/api/agencies");
+        const data = await res.json();
+
+        latestSnapshot = data.latestSnapshot;
+        cachedAgencies = data.agencies || [];
+
+        statusEl.textContent = latestSnapshot
+            ? `Latest snapshot: ${latestSnapshot.type} on ${latestSnapshot.snapshotDate} (SnapshotId=${latestSnapshot.id}). Agencies: ${cachedAgencies.length}`
+            : "No snapshots yet.";
+
+        render();
+
+        await loadChanges();
+    }
+
+    async function ingest(fromTitle, toTitle) {
+        statusEl.textContent = `Ingesting titles ${fromTitle}–${toTitle}...`;
+        const res = await fetch(`/api/ingest/current?fromTitle=${fromTitle}&toTitle=${toTitle}`, { method: "POST" });
+        const txt = await res.text();
+        console.log(txt);
+        await load();
+    }
+
+    document.getElementById("ingest1Btn").addEventListener("click", () => ingest(1, 1));
+    document.getElementById("ingestAllBtn").addEventListener("click", () => ingest(1, 50));
+    document.getElementById("refreshBtn").addEventListener("click", load);
+
+    searchBox.addEventListener("input", render);
+
+    load();
+</script>
+
+
