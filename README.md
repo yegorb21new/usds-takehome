@@ -45,7 +45,7 @@ dotnet run --project USDSTakeHomeTest
 ```
 
 PowerShell should say its now listening on some `<port>`. In a browser, open: 
-`http://localhost:<port>/Dashboard'
+`http://localhost:<port>/Dashboard`
 
 
 **4. API endpoints**
