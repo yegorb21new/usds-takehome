@@ -35,12 +35,11 @@ In the solution (.sln file) directory, run the following PowerShell commands:
 
 ```powershell
 dotnet tool install --global dotnet-ef
-dotnet ef database update --project USDSTakeHomeTest --startup-project USDSTakeHomeTest
 
 dotnet restore
 dotnet build
 
-dotnet ef database update
+dotnet ef database update --project USDSTakeHomeTest --startup-project USDSTakeHomeTest
 dotnet run --project USDSTakeHomeTest
 ```
 
