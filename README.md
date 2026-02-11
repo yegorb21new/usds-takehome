@@ -44,10 +44,8 @@ dotnet ef database update
 dotnet run --project USDSTakeHomeTest
 ```
 
-PowerShell should say its now listening on some <port>/n
-In a browser, open: 
-```http://localhost:\<port\>/Dashboard
-```
+PowerShell should say its now listening on some `<port>`. In a browser, open: 
+`http://localhost:<port>/Dashboard'
 
 
 **4. API endpoints**
@@ -65,6 +63,5 @@ Annual: POST /api/ingest/annual?year=2024&fromTitle=1&toTitle=50
 
 
 **5. Link to frontend Local Razor Pages UI:**
-```http://localhost:\<port\>Dashboard
-```
+`http://localhost:<port>/Dashboard`
 
