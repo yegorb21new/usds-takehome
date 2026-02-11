@@ -24,11 +24,18 @@ Prereqs:
 Visual Studio 2022 or dotnet CLI
 Commands:
 In the solution (.sln file) directory, run the following PowerShell commands:
+
+dotnet tool install --global dotnet-ef
+dotnet ef database update --project USDSTakeHomeTest --startup-project USDSTakeHomeTest
+
 dotnet restore
 dotnet build
+
+dotnet ef database update
 dotnet run --project USDSTakeHomeTest
+
 PowerShell should say its now listening on some <port>
-In a browser, open: https://localhost:<port>/Dashboard
+In a browser, open: http://localhost:<port>/Dashboard
 
 4. API endpoints
 GET /api/agencies — agencies with latest snapshot metrics (sorted by word count desc)
@@ -42,5 +49,5 @@ Annual: POST /api/ingest/annual?year=2024&fromTitle=1&toTitle=50
 
 5. Link to frontend
 Local Razor Pages UI:
-https://localhost:<port>/Dashboard
+http://localhost:<port>/Dashboard
 
